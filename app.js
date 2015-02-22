@@ -1,10 +1,21 @@
 var express = require('express');
 var app = express();
 var http = require('http').Server(app);
-var io = require('socket.io')(http);
+var io = require('socket.io')(http, {
+  transports: ['polling'],
+  "polling duration": 10
+});
+
+
+
 var game = require('./game')(io);
+var port = process.env.PORT || 5000;
 
 app.use(express.static(__dirname + '/public'));
+
+http.listen(port, function(){
+  console.log('listening on *:' + port);
+});
 
 io.on('connection', function(socket){
   console.log('a user connected');
@@ -39,8 +50,4 @@ io.on('connection', function(socket){
     console.log('user disconnected');
     // endGame();
   });
-});
-
-http.listen(8000, function(){
-  console.log('listening on *:3000');
 });

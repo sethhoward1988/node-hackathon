@@ -1,60 +1,46 @@
-
-
-var http = require('http').Server(app);
-var connect = require('connect');
 var express = require('express');
-var cookieParser = require('cookie-parser')('secret stuff');
 var app = express();
+var http = require('http').Server(app);
+var io = require('socket.io')(http);
+var game = require('./game')(io);
 
-var sessionStore = new connect.middleware.session.MemoryStore();
+app.use(express.static(__dirname + '/public'));
 
-app.configure(function () {
-  app.use(express.static(__dirname + '/public'));
-  app.use(cookieParser);
-  app.use(express.session({
-    store: sessionStore
-  }));
-});
+io.on('connection', function(socket){
+  console.log('a user connected');
+  io.emit('game-init', game.options);
+  
+  socket.on('start-game', function() {
+    game.start();
+  });
 
-var server = http.createServer(app);
-var io = require('socket.io').listen(server);
+  socket.on('end-game', function() {
+    game.end();
+  });
 
-var SessionSockets = require('session.socket.io');
-var sessionSockets = new SessionSockets(io, sessionStore, cookieParser);
+  socket.on('kill', function(id) {
+    game.killCircle(id);
+  });
 
-sessionSockets.on('connection', function(err, socket, session){
-  console.log(session);
-  socket.on('start-game', function(data) {
-    startGame();
-    console.log
+  socket.on('add-player', function(player) {
+    game.addPlayer(player);
+  });
+
+  socket.on('update-player', function(player) {
+    game.updatePlayer(player);
+  });
+
+  socket.on('remove-player', function(player) {
+    game.removePlayer(player);
+  });
+
+  socket.on('disconnect', function(){
+    console.log(arguments);
+    console.log('user disconnected');
+    // endGame();
   });
 });
 
-
-
-
-function startGame() {
-  var data = {
-    circles: [{
-      top: 0,
-      left: 0
-    },
-    {
-      top: 100,
-      left: 100
-    },{
-      top: 200,
-      left: 200
-    }]
-  };
-  step();
-
-  function step() {
-    for (var i = data.circles.length - 1; i >= 0; i--) {
-      data.circles[i].top++;
-      data.circles[i].left++;
-    };
-    io.emit('game-data', data);
-    setTimeout(step, 5);
-  };
-}
+http.listen(3000, function(){
+  console.log('listening on *:3000');
+});
